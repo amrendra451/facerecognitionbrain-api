@@ -2,98 +2,42 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const bcrypt = require('bcrypt');
-const saltRounds = 10;
+const knex = require('knex');
+
+const register = require("./controllers/register");
+const signIn = require("./controllers/signIn");
+const profile = require("./controllers/profile");
+const entires = require("./controllers/entries");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const database = {
-    users: [
-        {
-            id: 123,
-            name: "Sachin",
-            email: "sachin@gmail.com",
-            password: "sachin",
-            enteries: 0,
-            joined: new Date()
-        },
-        {
-            id: 124,
-            name: "Shive",
-            email: "shiva@gmail.com",
-            password: "shiva",
-            enteries: 0,
-            joined: new Date()
-        }
-    ]
-}
+const saltRounds = 10;
+
+const database = knex({
+    client: 'pg',
+    connection: {
+      host : '127.0.0.1',
+      user : 'postgres',
+      password : 'sachin255',
+      database : 'smart_brain'
+    }
+});
 
 app.get("/", (req, res) => {
     res.status(200).send(database.users);
 });
 
-app.post("/signin", (req, res) => {
-    const { email, password } = req.body;
-    // Load hash from your password DB.
-    // bcrypt.compare(myPlaintextPassword, hash, function(err, res) {
-    //     // res == true
-    // });
-    // bcrypt.compare(someOtherPlaintextPassword, hash, function(err, res) {
-    //     // res == false
-    // });
-    if (email === database.users[0].email && password === database.users[0].password) {
-        res.status(200).send(database.users[0]);
-    } else {
-        res.status(400).send("Erron in Login");
-    }
-});
+app.post("/signin", (req, res) => { signIn.signIn(req, res, database, bcrypt) });
 
-app.post("/register", (req, res) => {
-    const { name, email, password } = req.body;
-    bcrypt.hash(password, saltRounds, function(err, hash) {
-        // Store hash in your password DB.
-        console.log(hash);
-      });
-    database.users.push({
-        id: 125,
-        name: name,
-        email: email,
-        password: password,
-        enteries: 0,
-        joined: new Date()
-    });
-    res.status(200).send("Register Successfully");
-});
+app.post("/register", (req, res) => { register.handleRegister(req, res, database, bcrypt, saltRounds)});
 
-app.get("/profile/:id", (req, res) => {
-    const { id } = req.params;
-    let found = false;
-    database.users.forEach(user => {
-        if (user.id == id) {
-            found = true;
-            return res.status(200).send(user);
-        }
-    });
-    if (!found) {
-        res.status(400).send("User not found");
-    }
-});
+app.get("/profile/:id", (req, res) => { profile.getProfile(req, res, database) });
 
-app.put("/image", (req, res) => {
-    const { id } = req.body;
-    let found = false;
-    database.users.forEach(user => {
-        if (user.id == id) {
-            found = true;
-            user.enteries++;
-            return res.status(200).json(user.enteries);
-        }
-    });
-    if (!found) {
-        res.status(400).send("User not found");
-    }
-});
+app.put("/image", (req, res) => { entires.updateEntries(req, res, database)});
+
+app.post("/imageUrl", (req, res) => { entires.handleApiCall(req, res)});
 
 app.listen(5000, () => {
     console.log("Server is running on port 5000");
